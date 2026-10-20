@@ -3,404 +3,394 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ Ever's World — Conheça a Ever!</title>
+    <title>🧩 Ever's Maze — Conheça a Ever!</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', Tahoma, sans-serif;
         }
-        .game-wrap {
+        .wrap {
             background: rgba(255,255,255,0.05);
             padding: 20px;
             border-radius: 20px;
-            box-shadow: 0 0 60px rgba(130, 87, 229, 0.25);
+            box-shadow: 0 0 60px rgba(130,87,229,0.25);
         }
         canvas {
             display: block;
             border-radius: 12px;
-            background: linear-gradient(180deg, #5c94fc 0%, #87CEEB 60%, #90EE90 60%, #228B22 100%);
-            width: 720px;
-            height: 400px;
+            background: #1a1a2e;
         }
         .hud {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 10px 16px;
             color: #ccc;
-            font-size: 14px;
         }
         .hud .val { color: #FFD700; font-weight: bold; }
+        .hud .lv { color: #8257E5; font-weight: bold; }
+        .btn {
+            background: #8257E5; color: #fff;
+            border: none; padding: 6px 18px;
+            border-radius: 8px; font-weight: bold;
+            cursor: pointer; font-size: 13px;
+        }
+        .btn:hover { background: #6b3fcf; }
         .controls {
-            text-align: center;
-            color: #666;
-            font-size: 12px;
-            padding: 8px 0 2px;
+            text-align: center; color: #666;
+            font-size: 12px; padding: 8px 0 2px;
         }
         .controls kbd {
             background: rgba(130,87,229,0.15);
-            color: #8257E5;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
+            color: #8257E5; padding: 2px 8px;
+            border-radius: 4px; font-size: 11px;
             border: 1px solid rgba(130,87,229,0.3);
         }
-        .btn {
-            background: #FFD700;
-            color: #1a1a2e;
-            border: none;
-            padding: 6px 18px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        .btn:hover { background: #ffed4a; }
-        .msg-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+        .msg-overlay {
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.85);
-            color: #fff;
-            padding: 20px 40px;
-            border-radius: 16px;
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
+            background: rgba(0,0,0,0.88);
+            color: #fff; padding: 24px 40px;
+            border-radius: 16px; font-size: 20px;
+            font-weight: bold; text-align: center;
             border: 2px solid #FFD700;
             pointer-events: none;
-            transition: opacity 0.3s;
-            display: none;
-            max-width: 500px;
+            display: none; max-width: 480px;
+            box-shadow: 0 0 40px rgba(255,215,0,0.2);
         }
-        .msg-box.show { display: block; }
-        canvas { cursor: pointer; }
+        .msg-overlay.show { display: block; }
+        .msg-overlay small { display: block; font-size: 14px; color: #aaa; margin-top: 8px; font-weight: normal; }
     </style>
 </head>
 <body>
 <div style="position:relative">
-    <div class="game-wrap">
+    <div class="wrap">
         <div class="hud">
-            <span>⭐ <span class="val" id="starCount">0</span>/7</span>
-            <button class="btn" id="resetBtn">↻ Jogar de novo</button>
+            <span>🏆 <span class="val" id="scoreSpan">0</span>/<span class="val" id="totalSpan">12</span></span>
+            <span>📍 <span class="lv" id="levelSpan">1</span>/3</span>
+            <button class="btn" id="resetBtn">↻ Novo Jogo</button>
         </div>
-        <canvas id="game" width="720" height="400"></canvas>
+        <canvas id="gc" width="560" height="400"></canvas>
         <div class="controls">
-            <kbd>←</kbd> <kbd>→</kbd> andar · <kbd>Space</kbd> pular · <kbd>R</kbd> reiniciar
+            <kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd> mover · <kbd>R</kbd> reiniciar
         </div>
     </div>
-    <div class="msg-box" id="msgBox"></div>
+    <div class="msg-overlay" id="msgBox"></div>
 </div>
 
 <script>
-const canvas = document.getElementById('game');
+const canvas = document.getElementById('gc');
 const ctx = canvas.getContext('2d');
-const starSpan = document.getElementById('starCount');
+const scoreSpan = document.getElementById('scoreSpan');
+const totalSpan = document.getElementById('totalSpan');
+const levelSpan = document.getElementById('levelSpan');
 const msgBox = document.getElementById('msgBox');
 
-// ─── ESTRELAS ──────────────────────────────────────────────
-const STARS = [
-    { x: 180, y: 300, msg: '✨ Ever Maria Tobias Ferreira' },
-    { x: 320, y: 200, msg: '👩‍🏫 Instrutora Sênior na Ctrl+Play' },
-    { x: 420, y: 120, msg: '🤖 Especialista em IA & Cloud (AWS/Azure)' },
-    { x: 200, y: 120, msg: '🐍 Python · C/C++ · APIs (Flask/FastAPI)' },
-    { x: 520, y: 240, msg: '🐧 Linux · Docker · Git · IaC' },
-    { x: 380, y: 300, msg: '🎮 Arduino · Scratch · Construct · Unity' },
-    { x: 600, y: 150, msg: '📧 contatoeverferreira@gmail.com' },
+// ─── LABIRINTOS ────────────────────────────────────────────
+// 0 = caminho, 1 = parede, 2 = comida (ponto), 3 = especial
+const MAZES = [
+    // Labirinto 1 — Quem é Ever?
+    {
+        name: "Quem é Ever?",
+        map: [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,2,2,2,1,2,2,2,2,2,2,2,2,1],
+            [1,2,1,2,1,2,1,1,1,2,1,1,2,1],
+            [1,2,1,2,2,2,2,2,2,2,2,1,2,1],
+            [1,2,1,1,1,2,1,2,1,1,2,1,2,1],
+            [1,2,2,2,2,2,1,2,2,2,2,2,2,1],
+            [1,2,1,2,1,1,1,1,1,2,1,1,2,1],
+            [1,2,1,2,2,2,2,2,2,2,2,1,2,1],
+            [1,2,1,1,1,2,1,2,1,1,2,1,2,1],
+            [1,2,2,2,2,2,1,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        ],
+        facts: [
+            "✨ Ever Maria Tobias Ferreira",
+            "👩‍🏫 Instrutora Sênior na Ctrl+Play",
+            "🤖 Especialista em IA & Cloud",
+            "📍 Jundiaí, SP",
+        ],
+    },
+    // Labirinto 2 — Skills
+    {
+        name: "Skills & Tecnologias",
+        map: [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,2,2,1,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,2,1,1,1,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,1,2,1],
+            [1,1,1,1,2,1,2,1,1,1,2,1,2,1],
+            [1,2,2,2,2,1,2,2,2,1,2,2,2,1],
+            [1,2,1,1,1,1,1,1,2,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,1,2,1],
+            [1,2,1,1,1,1,1,1,1,1,2,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        ],
+        facts: [
+            "🐍 Python · C/C++ · APIs (Flask/FastAPI)",
+            "☁️ AWS · Azure · IA Generativa (Bedrock, OpenAI)",
+            "🐧 Linux · Docker · Git · Infraestrutura",
+            "🎮 Arduino · Scratch · Construct · Unity",
+        ],
+    },
+    // Labirinto 3 — Filosofia
+    {
+        name: "Formação & Contato",
+        map: [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,1,2,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,1,2,1],
+            [1,1,1,1,1,1,1,2,1,1,2,1,2,1],
+            [1,2,2,2,2,2,2,2,2,1,2,2,2,1],
+            [1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,2,1,1,1,1,1,1,1,1,1,1,2,1],
+            [1,2,2,2,2,2,2,2,2,2,2,2,2,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        ],
+        facts: [
+            "📚 UNINTER (Licenciatura) + ETEC",
+            "🏅 Certificada: Google AI, AWS, Python, Linux",
+            "💡 'A melhor maneira de aprender é ensinando'",
+            "📧 contatoeverferreira@gmail.com",
+        ],
+    },
 ];
-let collected = new Array(STARS.length).fill(false);
-let starsCollected = 0;
 
-// ─── JOGADOR (Mario style) ─────────────────────────────────
-const player = {
-    x: 60, y: 280, w: 28, h: 34,
-    vx: 0, vy: 0,
-    speed: 3.5,
-    jumpPower: -7.5,
-    gravity: 0.4,
-    grounded: false,
-    onGround: false,
-    dir: 1,
-};
+const CELL = 28;
+const COLS = 14, ROWS = 11;
+let currentLevel = 0;
+let score = 0;
+let totalDots = 0;
 
-// ─── PLATAFORMAS ───────────────────────────────────────────
-const platforms = [
-    // Chão
-    { x: 0, y: 365, w: 720, h: 35 },
-    // Plataformas
-    { x: 140, y: 300, w: 100, h: 14 },
-    { x: 300, y: 240, w: 90, h: 14 },
-    { x: 430, y: 180, w: 100, h: 14 },
-    { x: 250, y: 140, w: 70, h: 14 },
-    { x: 570, y: 270, w: 90, h: 14 },
-    { x: 80, y: 180, w: 70, h: 14 },
-];
+// Jogador
+const p = { x: 1, y: 1, tx: 1, ty: 1, dir: {x:0, y:0}, moving: false, px: 0, py: 0 };
+
+// ─── MAPA ATUAL ────────────────────────────────────────────
+let maze = [];
+let dots = [];
+let factsCollected = [];
+loadLevel(0);
 
 // ─── ENTRADA ───────────────────────────────────────────────
 const keys = {};
 document.addEventListener('keydown', e => {
     keys[e.code] = true;
-    if (e.code === 'Space') e.preventDefault();
     if (e.code === 'KeyR') resetGame();
+    // Controle direcional (movimento por tile)
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+        let dx = 0, dy = 0;
+        if (e.code === 'ArrowUp') dy = -1;
+        if (e.code === 'ArrowDown') dy = 1;
+        if (e.code === 'ArrowLeft') dx = -1;
+        if (e.code === 'ArrowRight') dx = 1;
+        tryMove(dx, dy);
+    }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
 document.getElementById('resetBtn').addEventListener('click', resetGame);
-canvas.addEventListener('click', () => {
-    if (starsCollected === STARS.length) resetGame();
-});
 
 // ─── FUNÇÕES ───────────────────────────────────────────────
-function resetGame() {
-    player.x = 60; player.y = 280;
-    player.vx = 0; player.vy = 0;
-    player.grounded = false;
-    collected = new Array(STARS.length).fill(false);
-    starsCollected = 0;
-    starSpan.textContent = '0';
-    msgBox.classList.remove('show');
+function loadLevel(idx) {
+    const lv = MAZES[idx];
+    maze = lv.map.map(r => [...r]);
+    dots = [];
+    factsCollected = [];
+    totalDots = 0;
+    let fi = 0;
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            if (maze[r][c] === 2) {
+                const isSpecial = (r % 2 === 0 && c % 3 === 0);
+                maze[r][c] = isSpecial ? 3 : 2;
+                totalDots++;
+                dots.push({ x: c, y: r, type: isSpecial ? 3 : 2, factIdx: fi });
+                if (isSpecial) fi++;
+            }
+        }
+    }
+    p.x = 1; p.y = 1; p.tx = 1; p.ty = 1;
+    p.px = 1 * CELL + CELL/2; p.py = 1 * CELL + CELL/2;
+    p.moving = false;
+    levelSpan.textContent = `${idx+1}/${MAZES.length}`;
+    totalSpan.textContent = totalDots;
+    scoreSpan.textContent = score;
 }
 
-function showMsg(text) {
-    msgBox.textContent = text;
-    msgBox.classList.add('show');
-    setTimeout(() => msgBox.classList.remove('show'), 2200);
+function tryMove(dx, dy) {
+    if (p.moving) return;
+    const nx = p.x + dx, ny = p.y + dy;
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) return;
+    if (maze[ny][nx] === 1) return;
+    p.tx = nx; p.ty = ny;
+    p.dir = {x: dx, y: dy};
+    p.moving = true;
 }
 
-// ─── UPDATE ────────────────────────────────────────────────
 function update() {
-    // Input
-    player.vx = 0;
-    if (keys['ArrowLeft'] || keys['KeyA']) { player.vx = -player.speed; player.dir = -1; }
-    if (keys['ArrowRight'] || keys['KeyD']) { player.vx = player.speed; player.dir = 1; }
+    if (!p.moving) return;
 
-    if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded) {
-        player.vy = player.jumpPower;
-        player.grounded = false;
-    }
+    const speed = 0.12;
+    const tx = p.tx * CELL + CELL/2;
+    const ty = p.ty * CELL + CELL/2;
 
-    player.vy += player.gravity;
-    if (player.vy > 10) player.vy = 10;
+    // Interpolação suave
+    p.px += (tx - p.px) * speed;
+    p.py += (ty - p.py) * speed;
 
-    // X
-    player.x += player.vx;
-    if (player.x < 0) player.x = 0;
-    if (player.x + player.w > 720) player.x = 720 - player.w;
+    // Chegou no tile
+    if (Math.abs(p.px - tx) < 0.5 && Math.abs(p.py - ty) < 0.5) {
+        p.px = tx; p.py = ty;
+        p.x = p.tx; p.y = p.ty;
+        p.moving = false;
 
-    // Y
-    player.y += player.vy;
-
-    // Colisão com plataformas
-    player.grounded = false;
-    for (const p of platforms) {
-        const px = player.x, py = player.y, pw = player.w, ph = player.h;
-        if (px + pw > p.x && px < p.x + p.w && py + ph > p.y && py < p.y + p.h) {
-            // De cima
-            if (player.vy > 0 && py + ph - player.vy <= p.y + 6) {
-                player.y = p.y - ph; player.vy = 0; player.grounded = true;
-            }
-            // De baixo
-            else if (player.vy < 0 && py - player.vy >= p.y + p.h - 6) {
-                player.y = p.y + p.h; player.vy = 0;
-            }
-            // Lados
-            else if (player.vx > 0 && px + pw - player.vx <= p.x + 6) {
-                player.x = p.x - pw;
-            } else if (player.vx < 0 && px - player.vx >= p.x + p.w - 6) {
-                player.x = p.x + p.w;
+        // Coletar dot
+        const cell = maze[p.y][p.x];
+        if (cell === 2 || cell === 3) {
+            const dot = dots.find(d => d.x === p.x && d.y === p.y);
+            if (dot) {
+                maze[p.y][p.x] = 0;
+                score++;
+                scoreSpan.textContent = score;
+                if (dot.type === 3 && dot.factIdx < MAZES[currentLevel].facts.length) {
+                    showMsg('💡 ' + MAZES[currentLevel].facts[dot.factIdx], 2000);
+                    factsCollected.push(dot.factIdx);
+                }
             }
         }
-    }
 
-    // Se cair, volta
-    if (player.y > 420) { player.x = 60; player.y = 280; player.vy = 0; }
-
-    // Coletar estrelas
-    for (let i = 0; i < STARS.length; i++) {
-        if (collected[i]) continue;
-        const s = STARS[i];
-        const dx = (player.x + player.w/2) - s.x;
-        const dy = (player.y + player.h/2) - s.y;
-        if (Math.sqrt(dx*dx + dy*dy) < 22) {
-            collected[i] = true;
-            starsCollected++;
-            starSpan.textContent = starsCollected;
-            showMsg(s.msg);
-        }
-    }
-
-    // Fim de jogo
-    if (starsCollected === STARS.length) {
-        // Só mostra se não tiver mostrado ainda
-        if (msgBox.textContent !== '🎉 Você conheceu a Ever! <br> Clique para jogar de novo') {
+        // Próximo nível
+        if (score === totalDots && currentLevel < MAZES.length - 1) {
+            showMsg('✅ Labirinto completo!', 1500);
             setTimeout(() => {
-                msgBox.innerHTML = '🎉 Você conheceu a Ever!<br><span style="font-size:14px;color:#aaa">Clique para jogar de novo</span>';
-                msgBox.classList.add('show');
-            }, 2400);
+                currentLevel++;
+                score = 0;
+                loadLevel(currentLevel);
+                showMsg(`📍 Labirinto ${currentLevel+1}: ${MAZES[currentLevel].name}`, 2000);
+            }, 1600);
+        } else if (score === totalDots && currentLevel === MAZES.length - 1) {
+            showMsg('🎉 Parabéns! Você conheceu a Ever! 🎉\n<small>Clique em "Novo Jogo" para jogar de novo</small>', 5000);
         }
     }
+}
+
+let msgTimer = 0;
+function showMsg(text, duration) {
+    msgBox.innerHTML = text;
+    msgBox.classList.add('show');
+    if (msgTimer) clearTimeout(msgTimer);
+    msgTimer = setTimeout(() => msgBox.classList.remove('show'), duration);
+}
+
+function resetGame() {
+    currentLevel = 0;
+    score = 0;
+    factsCollected = [];
+    loadLevel(0);
+    msgBox.classList.remove('show');
+    showMsg('🧩 Colete os pontos para conhecer a Ever!', 2500);
 }
 
 // ─── DRAW ──────────────────────────────────────────────────
 function draw() {
-    ctx.clearRect(0, 0, 720, 400);
+    ctx.clearRect(0, 0, 560, 400);
 
-    // ─── Céu ───────────────────────────────────────────────
-    const grad = ctx.createLinearGradient(0, 0, 0, 400);
-    grad.addColorStop(0, '#5c94fc');
-    grad.addColorStop(0.55, '#87CEEB');
-    grad.addColorStop(0.56, '#90EE90');
-    grad.addColorStop(1, '#228B22');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 720, 400);
+    // Fundo
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, 560, 400);
 
-    // Nuvens
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    for (let i = 0; i < 5; i++) {
-        const cx = (i * 170 + 20) % 720;
-        const cy = 30 + (i % 3) * 25;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, 35, 15, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cx+25, cy-5, 25, 12, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cx-20, cy-3, 20, 10, 0, 0, Math.PI*2);
-        ctx.fill();
-    }
+    // Título do labirinto
+    ctx.fillStyle = 'rgba(130,87,229,0.3)';
+    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${MAZES[currentLevel].name}`, 280, 20);
 
-    // ─── Plataformas (estilo Mario) ────────────────────────
-    for (const p of platforms) {
-        // Brick pattern
-        ctx.fillStyle = '#C4722C';
-        ctx.fillRect(p.x, p.y, p.w, p.h);
-        ctx.strokeStyle = '#8B5E3C';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(p.x, p.y, p.w, p.h);
-        // Linhas de tijolo
-        ctx.strokeStyle = '#8B5E3C';
-        ctx.lineWidth = 1;
-        for (let bx = p.x + 15; bx < p.x + p.w; bx += 30) {
-            ctx.beginPath();
-            ctx.moveTo(bx, p.y);
-            ctx.lineTo(bx, p.y + p.h);
-            ctx.stroke();
+    // GRADE
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const cell = maze[r][c];
+            const x = c * CELL, y = r * CELL + 28;
+
+            if (cell === 1) {
+                // Parede (estilo Pac-Man)
+                ctx.fillStyle = '#2a1a5e';
+                ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+                ctx.strokeStyle = '#4a2a8e';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+            } else if (cell === 2) {
+                // Pontinho
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(x + CELL/2, y + CELL/2, 3, 0, Math.PI*2);
+                ctx.fill();
+            } else if (cell === 3) {
+                // Especial (estrela com fato)
+                const pulse = Math.sin(Date.now() / 300 + c + r) * 1.5;
+                ctx.shadowColor = 'rgba(255,215,0,0.5)';
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#FFD700';
+                drawStar(ctx, x + CELL/2, y + CELL/2 + pulse, 5, 7, 3);
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#8B6914';
+                ctx.font = '6px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('?', x + CELL/2, y + CELL/2 + pulse + 1);
+                ctx.textBaseline = 'alphabetic';
+            }
         }
     }
 
-    // ─── Estrelas ──────────────────────────────────────────
-    for (let i = 0; i < STARS.length; i++) {
-        if (collected[i]) continue;
-        const s = STARS[i];
-        const pulse = Math.sin(Date.now() / 250 + i * 1.5) * 2;
+    // Jogador (Ever — pac-man style)
+    const px = p.px, py = p.py + 28;
+    const r = 11;
 
-        // Brilho
-        ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
-        ctx.shadowBlur = 15;
+    // Brilho
+    ctx.shadowColor = 'rgba(130,87,229,0.5)';
+    ctx.shadowBlur = 15;
 
-        // Estrela
-        ctx.fillStyle = '#FFD700';
-        const cx = s.x, cy = s.y + pulse;
-        drawStar(ctx, cx, cy, 5, 10, 4);
-        ctx.shadowBlur = 0;
-
-        // "?" dentro
-        ctx.fillStyle = '#8B6914';
-        ctx.font = 'bold 9px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('?', cx, cy + 1);
-        ctx.textBaseline = 'alphabetic';
-    }
-
-    // ─── Jogador (Mario pixel style) ───────────────────────
-    const px = Math.round(player.x), py = Math.round(player.y);
-    const d = player.dir;
-
-    // Sombra
-    ctx.shadowColor = 'rgba(0,0,0,0.2)';
-    ctx.shadowBlur = 8;
-
-    // Boné (chapéu)
-    ctx.fillStyle = '#E03030';
-    ctx.fillRect(px + 3, py + 1, 14, 5);
-    ctx.fillRect(px + 1, py + 4, 18, 3);
-
-    // Rosto
-    ctx.fillStyle = '#F5D0A9';
-    ctx.fillRect(px + 2, py + 7, 16, 10);
-    ctx.fillRect(px + 4, py + 6, 12, 2);
+    // Círculo (corpo)
+    ctx.fillStyle = '#8257E5';
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fill();
 
     // Olhos
-    ctx.fillStyle = '#000';
-    const eyeX = d > 0 ? px + 12 : px + 6;
-    ctx.fillRect(eyeX, py + 8, 2, 3);
-    ctx.fillRect(eyeX + 5, py + 8, 2, 3);
+    ctx.fillStyle = '#fff';
+    const eyeOff = p.dir.x >= 0 ? 3 : -3;
+    ctx.beginPath();
+    ctx.arc(px + eyeOff - 3, py - 3, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(px + eyeOff + 3, py - 3, 3, 0, Math.PI*2);
+    ctx.fill();
 
-    // Sorriso
-    ctx.fillStyle = '#000';
-    ctx.fillRect(px + 8, py + 14, 6, 2);
-    ctx.fillRect(px + 9, py + 13, 4, 1);
+    // Pupilas
+    ctx.fillStyle = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(px + eyeOff - 3, py - 3, 1.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(px + eyeOff + 3, py - 3, 1.5, 0, Math.PI*2);
+    ctx.fill();
 
-    // Bigode
-    ctx.fillStyle = '#4A2800';
-    ctx.fillRect(px + 6, py + 12, 10, 2);
-
-    // Camisa (vermelha)
+    // Boina
     ctx.fillStyle = '#E03030';
-    ctx.fillRect(px + 4, py + 17, 14, 10);
-
-    // Braços
-    ctx.fillStyle = '#F5D0A9';
-    if (Math.abs(player.vx) > 0 && player.grounded) {
-        const swing = Math.sin(Date.now() / 120) * 2;
-        ctx.fillRect(px + 1, py + 18 + swing, 4, 7);
-        ctx.fillRect(px + 17, py + 18 - swing, 4, 7);
-    } else {
-        ctx.fillRect(px + 1, py + 18, 4, 7);
-        ctx.fillRect(px + 17, py + 18, 4, 7);
-    }
-
-    // Macacão (azul)
-    ctx.fillStyle = '#3060C0';
-    ctx.fillRect(px + 5, py + 22, 12, 8);
-
-    // Botões
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(px + 8, py + 20, 2, 2);
-    ctx.fillRect(px + 12, py + 20, 2, 2);
-
-    // Pernas
-    ctx.fillStyle = '#3060C0';
-    if (Math.abs(player.vx) > 0 && player.grounded) {
-        const leg = Math.sin(Date.now() / 100) * 3;
-        ctx.fillRect(px + 5, py + 28, 6, 7 + leg);
-        ctx.fillRect(px + 12, py + 28, 6, 7 - leg);
-    } else {
-        ctx.fillRect(px + 5, py + 28, 6, 7);
-        ctx.fillRect(px + 12, py + 28, 6, 7);
-    }
-
-    // Sapatos
-    ctx.fillStyle = '#5C3A1E';
-    ctx.fillRect(px + 4, py + 33, 8, 4);
-    ctx.fillRect(px + 12, py + 33, 8, 4);
+    ctx.beginPath();
+    ctx.ellipse(px, py - r - 2, 8, 4, 0, 0, Math.PI*2);
+    ctx.fill();
 
     ctx.shadowBlur = 0;
-
-    // ─── Dica no topo ──────────────────────────────────────
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '12px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    if (starsCollected < STARS.length) {
-        ctx.fillText('Colete as ⭐ para conhecer a Ever!', 360, 16);
-    }
-    ctx.textAlign = 'start';
 }
 
 function drawStar(ctx, cx, cy, spikes, outerR, innerR) {
@@ -424,6 +414,10 @@ function loop() {
     draw();
     requestAnimationFrame(loop);
 }
+
+// Inicia com mensagem
+setTimeout(() => showMsg('🧩 Use as setas para se mover pelo labirinto!', 3000), 500);
+
 loop();
 </script>
 </body>
