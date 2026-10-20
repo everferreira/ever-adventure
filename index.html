@@ -3,483 +3,409 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ Ever's Adventure — Conheça a Ever!</title>
+    <title>✨ Ever's World — Conheça a Ever!</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0f0c29;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', Tahoma, sans-serif;
         }
-        .game-wrapper {
+        .game-wrap {
             background: rgba(255,255,255,0.05);
-            border-radius: 20px;
             padding: 20px;
-            box-shadow: 0 0 60px rgba(130, 87, 229, 0.3);
-            border: 1px solid rgba(130, 87, 229, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 0 60px rgba(130, 87, 229, 0.25);
         }
         canvas {
             display: block;
-            margin: 0 auto;
             border-radius: 12px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-            background: #1a1a2e;
+            background: linear-gradient(180deg, #5c94fc 0%, #87CEEB 60%, #90EE90 60%, #228B22 100%);
+            width: 720px;
+            height: 400px;
         }
         .hud {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            color: #e0e0e0;
+            padding: 10px 16px;
+            color: #ccc;
             font-size: 14px;
         }
-        .hud-left { display: flex; gap: 24px; }
-        .hud-right { display: flex; gap: 12px; }
-        .hud .label { color: #888; }
-        .hud .value { color: #8257E5; font-weight: bold; }
-        .btn {
-            background: #8257E5;
-            color: white;
-            border: none;
-            padding: 6px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .btn:hover { background: #6b3fcf; transform: scale(1.05); }
-        .controls-hint {
+        .hud .val { color: #FFD700; font-weight: bold; }
+        .controls {
             text-align: center;
             color: #666;
             font-size: 12px;
-            padding: 8px 0 4px;
-            letter-spacing: 0.5px;
+            padding: 8px 0 2px;
         }
-        .controls-hint kbd {
-            background: rgba(130, 87, 229, 0.15);
+        .controls kbd {
+            background: rgba(130,87,229,0.15);
             color: #8257E5;
             padding: 2px 8px;
             border-radius: 4px;
             font-size: 11px;
-            border: 1px solid rgba(130, 87, 229, 0.3);
+            border: 1px solid rgba(130,87,229,0.3);
         }
+        .btn {
+            background: #FFD700;
+            color: #1a1a2e;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn:hover { background: #ffed4a; }
+        .msg-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            border: 2px solid #FFD700;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            display: none;
+            max-width: 500px;
+        }
+        .msg-box.show { display: block; }
+        canvas { cursor: pointer; }
     </style>
 </head>
 <body>
-<div class="game-wrapper">
-    <div class="hud">
-        <div class="hud-left">
-            <span><span class="label">⭐</span> <span class="value" id="scoreDisplay">0</span></span>
-            <span><span class="label">Nível</span> <span class="value" id="levelDisplay">1</span></span>
+<div style="position:relative">
+    <div class="game-wrap">
+        <div class="hud">
+            <span>⭐ <span class="val" id="starCount">0</span>/7</span>
+            <button class="btn" id="resetBtn">↻ Jogar de novo</button>
         </div>
-        <div class="hud-right">
-            <button class="btn" id="restartBtn">↻ Reiniciar</button>
+        <canvas id="game" width="720" height="400"></canvas>
+        <div class="controls">
+            <kbd>←</kbd> <kbd>→</kbd> andar · <kbd>Space</kbd> pular · <kbd>R</kbd> reiniciar
         </div>
     </div>
-    <canvas id="gameCanvas" width="720" height="400"></canvas>
-    <div class="controls-hint">
-        <kbd>←</kbd> <kbd>→</kbd> mover · <kbd>Space</kbd> pular · <kbd>R</kbd> reiniciar
-    </div>
+    <div class="msg-box" id="msgBox"></div>
 </div>
 
 <script>
-// ─── CANVAS ────────────────────────────────────────────────
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const scoreSpan = document.getElementById('scoreDisplay');
-const levelSpan = document.getElementById('levelDisplay');
+const starSpan = document.getElementById('starCount');
+const msgBox = document.getElementById('msgBox');
 
-// ─── ESTRELAS — fatos sobre a Ever ─────────────────────────
-const LEVEL_DATA = [
-    { // Level 1 — Quem é Ever?
-        name: "Quem é Ever?",
-        stars: [
-            { x: 200, y: 200, fact: "✨ Ever Maria Tobias Ferreira", collected: false },
-            { x: 400, y: 150, fact: "👩‍🏫 Instrutora Sênior na Ctrl+Play", collected: false },
-            { x: 550, y: 250, fact: "🤖 Especialista em IA & Cloud", collected: false },
-        ],
-        completeMessage: "Missão 1 completa! Conheceu a Ever!"
-    },
-    { // Level 2 — Skills e experiência
-        name: "Skills & Experiência",
-        stars: [
-            { x: 150, y: 280, fact: "🐍 Python · C/C++ · APIs (Flask/FastAPI)", collected: false },
-            { x: 350, y: 180, fact: "☁️ AWS · Azure · IA Generativa", collected: false },
-            { x: 500, y: 120, fact: "🎮 Scratch · Arduino · Construct · Unity", collected: false },
-            { x: 600, y: 280, fact: "🐧 Linux · Docker · Git · IaC", collected: false },
-        ],
-        completeMessage: "Missão 2 completa! Conheceu as skills!"
-    },
-    { // Level 3 — Filosofia e contato
-        name: "Filosofia & Contato",
-        stars: [
-            { x: 180, y: 200, fact: "📚 Formação: UNINTER + ETEC + Google AI", collected: false },
-            { x: 380, y: 150, fact: "🏅 Certificada: AWS, IA Generativa, Python", collected: false },
-            { x: 520, y: 260, fact: "💡 'A melhor maneira de aprender é ensinando'", collected: false },
-            { x: 650, y: 120, fact: "📧 contatoeverferreira@gmail.com", collected: false },
-        ],
-        completeMessage: "🎉 Você conheceu a Ever! Obrigado por jogar!"
-    }
+// ─── ESTRELAS ──────────────────────────────────────────────
+const STARS = [
+    { x: 180, y: 300, msg: '✨ Ever Maria Tobias Ferreira' },
+    { x: 320, y: 200, msg: '👩‍🏫 Instrutora Sênior na Ctrl+Play' },
+    { x: 420, y: 120, msg: '🤖 Especialista em IA & Cloud (AWS/Azure)' },
+    { x: 200, y: 120, msg: '🐍 Python · C/C++ · APIs (Flask/FastAPI)' },
+    { x: 520, y: 240, msg: '🐧 Linux · Docker · Git · IaC' },
+    { x: 380, y: 300, msg: '🎮 Arduino · Scratch · Construct · Unity' },
+    { x: 600, y: 150, msg: '📧 contatoeverferreira@gmail.com' },
 ];
+let collected = new Array(STARS.length).fill(false);
+let starsCollected = 0;
 
-let currentLevel = 0;
-let score = 0;
-let gameState = 'playing'; // 'playing' | 'message'
-let messageText = '';
-let messageTimer = 0;
-let levelComplete = false;
-
-// ─── JOGADOR ────────────────────────────────────────────────
+// ─── JOGADOR (Mario style) ─────────────────────────────────
 const player = {
-    x: 80, y: 300, w: 24, h: 32,
+    x: 60, y: 280, w: 28, h: 34,
     vx: 0, vy: 0,
-    speed: 4,
-    jumpPower: -8,
-    gravity: 0.45,
+    speed: 3.5,
+    jumpPower: -7.5,
+    gravity: 0.4,
     grounded: false,
-    facing: 1,
-    animFrame: 0,
-    animTimer: 0,
+    onGround: false,
+    dir: 1,
 };
 
 // ─── PLATAFORMAS ───────────────────────────────────────────
 const platforms = [
     // Chão
-    { x: 0, y: 380, w: 720, h: 20 },
-    // Plataformas fixas
-    { x: 100, y: 320, w: 100, h: 12 },
-    { x: 280, y: 270, w: 100, h: 12 },
-    { x: 460, y: 220, w: 100, h: 12 },
-    { x: 620, y: 300, w: 80, h: 12 },
-    { x: 50, y: 200, w: 80, h: 12 },
-    { x: 300, y: 150, w: 120, h: 12 },
-    { x: 550, y: 160, w: 80, h: 12 },
+    { x: 0, y: 365, w: 720, h: 35 },
+    // Plataformas
+    { x: 140, y: 300, w: 100, h: 14 },
+    { x: 300, y: 240, w: 90, h: 14 },
+    { x: 430, y: 180, w: 100, h: 14 },
+    { x: 250, y: 140, w: 70, h: 14 },
+    { x: 570, y: 270, w: 90, h: 14 },
+    { x: 80, y: 180, w: 70, h: 14 },
 ];
-
-// ─── CORES TEMÁTICAS ───────────────────────────────────────
-const COLORS = {
-    player: '#8257E5',
-    playerDark: '#6b3fcf',
-    playerLight: '#a07df0',
-    platform: 'rgba(130, 87, 229, 0.4)',
-    platformBorder: 'rgba(130, 87, 229, 0.6)',
-    star: '#FFD700',
-    starGlow: 'rgba(255, 215, 0, 0.4)',
-    starCollected: 'rgba(255, 215, 0, 0.1)',
-    bg: '#1a1a2e',
-    text: '#e0e0e0',
-};
 
 // ─── ENTRADA ───────────────────────────────────────────────
 const keys = {};
 document.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (e.code === 'Space') e.preventDefault();
-    if (e.code === 'KeyR') restartGame();
+    if (e.code === 'KeyR') resetGame();
 });
-document.addEventListener('keyup', e => {
-    keys[e.code] = false;
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+document.getElementById('resetBtn').addEventListener('click', resetGame);
+canvas.addEventListener('click', () => {
+    if (starsCollected === STARS.length) resetGame();
 });
-document.getElementById('restartBtn').addEventListener('click', restartGame);
 
 // ─── FUNÇÕES ───────────────────────────────────────────────
-function getLevel() { return LEVEL_DATA[currentLevel]; }
-
-function restartGame() {
-    currentLevel = 0;
-    score = 0;
-    gameState = 'playing';
-    levelComplete = false;
-    // Reset stars
-    LEVEL_DATA.forEach(l => l.stars.forEach(s => s.collected = false));
-    resetPlayer();
-    updateHUD();
-}
-
-function resetPlayer() {
-    player.x = 80;
-    player.y = 300;
-    player.vx = 0;
-    player.vy = 0;
+function resetGame() {
+    player.x = 60; player.y = 280;
+    player.vx = 0; player.vy = 0;
     player.grounded = false;
+    collected = new Array(STARS.length).fill(false);
+    starsCollected = 0;
+    starSpan.textContent = '0';
+    msgBox.classList.remove('show');
 }
 
-function checkCollision(rect1, rect2) {
-    return rect1.x < rect2.x + rect2.w &&
-           rect1.x + rect1.w > rect2.x &&
-           rect1.y < rect2.y + rect2.h &&
-           rect1.y + rect1.h > rect2.y;
-}
-
-function rectForPlayer() {
-    return { x: player.x, y: player.y, w: player.w, h: player.h };
-}
-
-function showMessage(text, duration = 150) {
-    gameState = 'message';
-    messageText = text;
-    messageTimer = duration;
+function showMsg(text) {
+    msgBox.textContent = text;
+    msgBox.classList.add('show');
+    setTimeout(() => msgBox.classList.remove('show'), 2200);
 }
 
 // ─── UPDATE ────────────────────────────────────────────────
 function update() {
-    if (gameState === 'message') {
-        messageTimer--;
-        if (messageTimer <= 0) {
-            gameState = 'playing';
-            if (levelComplete) {
-                levelComplete = false;
-                currentLevel++;
-                if (currentLevel >= LEVEL_DATA.length) {
-                    showMessage("🎉 Parabéns! Você completou o jogo! 🎉", 300);
-                    currentLevel = LEVEL_DATA.length - 1;
-                } else {
-                    resetPlayer();
-                    updateHUD();
-                }
-            }
-        }
-        return;
-    }
-
     // Input
     player.vx = 0;
-    if (keys['ArrowLeft'] || keys['KeyA']) { player.vx = -player.speed; player.facing = -1; }
-    if (keys['ArrowRight'] || keys['KeyD']) { player.vx = player.speed; player.facing = 1; }
+    if (keys['ArrowLeft'] || keys['KeyA']) { player.vx = -player.speed; player.dir = -1; }
+    if (keys['ArrowRight'] || keys['KeyD']) { player.vx = player.speed; player.dir = 1; }
 
     if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.grounded) {
         player.vy = player.jumpPower;
         player.grounded = false;
     }
 
-    // Gravidade
     player.vy += player.gravity;
+    if (player.vy > 10) player.vy = 10;
 
-    // Limite de velocidade
-    if (player.vy > 12) player.vy = 12;
-
-    // Movimento X
+    // X
     player.x += player.vx;
     if (player.x < 0) player.x = 0;
-    if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
+    if (player.x + player.w > 720) player.x = 720 - player.w;
 
-    // Movimento Y
+    // Y
     player.y += player.vy;
 
-    // Colisão com plataformas (apenas de cima)
+    // Colisão com plataformas
     player.grounded = false;
-    const pRect = rectForPlayer();
-    for (const plat of platforms) {
-        if (checkCollision(pRect, plat)) {
+    for (const p of platforms) {
+        const px = player.x, py = player.y, pw = player.w, ph = player.h;
+        if (px + pw > p.x && px < p.x + p.w && py + ph > p.y && py < p.y + p.h) {
             // De cima
-            if (player.vy > 0 && player.y + player.h - player.vy <= plat.y + 4) {
-                player.y = plat.y - player.h;
-                player.vy = 0;
-                player.grounded = true;
+            if (player.vy > 0 && py + ph - player.vy <= p.y + 6) {
+                player.y = p.y - ph; player.vy = 0; player.grounded = true;
             }
             // De baixo
-            else if (player.vy < 0 && player.y - player.vy >= plat.y + plat.h - 4) {
-                player.y = plat.y + plat.h;
-                player.vy = 0;
+            else if (player.vy < 0 && py - player.vy >= p.y + p.h - 6) {
+                player.y = p.y + p.h; player.vy = 0;
+            }
+            // Lados
+            else if (player.vx > 0 && px + pw - player.vx <= p.x + 6) {
+                player.x = p.x - pw;
+            } else if (player.vx < 0 && px - player.vx >= p.x + p.w - 6) {
+                player.x = p.x + p.w;
             }
         }
     }
 
-    // Cair fora da tela
-    if (player.y > canvas.height + 50) {
-        resetPlayer();
-    }
+    // Se cair, volta
+    if (player.y > 420) { player.x = 60; player.y = 280; player.vy = 0; }
 
-    // Colisão com estrelas
-    const level = getLevel();
-    for (const star of level.stars) {
-        if (star.collected) continue;
-        const dx = (player.x + player.w/2) - star.x;
-        const dy = (player.y + player.h/2) - star.y;
-        if (Math.sqrt(dx*dx + dy*dy) < 24) {
-            star.collected = true;
-            score += 10;
-            showMessage(star.fact, 120);
-            updateHUD();
+    // Coletar estrelas
+    for (let i = 0; i < STARS.length; i++) {
+        if (collected[i]) continue;
+        const s = STARS[i];
+        const dx = (player.x + player.w/2) - s.x;
+        const dy = (player.y + player.h/2) - s.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 22) {
+            collected[i] = true;
+            starsCollected++;
+            starSpan.textContent = starsCollected;
+            showMsg(s.msg);
         }
     }
 
-    // Verificar se todas as estrelas do nível foram coletadas
-    const allCollected = level.stars.every(s => s.collected);
-    if (allCollected && gameState === 'playing') {
-        levelComplete = true;
-        if (currentLevel < LEVEL_DATA.length - 1) {
-            showMessage("✅ " + level.completeMessage + " — Pressione ESPAÇO para continuar", 200);
-        } else {
-            showMessage("🎉 " + level.completeMessage + " 🎉", 500);
+    // Fim de jogo
+    if (starsCollected === STARS.length) {
+        // Só mostra se não tiver mostrado ainda
+        if (msgBox.textContent !== '🎉 Você conheceu a Ever! <br> Clique para jogar de novo') {
+            setTimeout(() => {
+                msgBox.innerHTML = '🎉 Você conheceu a Ever!<br><span style="font-size:14px;color:#aaa">Clique para jogar de novo</span>';
+                msgBox.classList.add('show');
+            }, 2400);
         }
-    }
-
-    // Animação
-    if (Math.abs(player.vx) > 0 && player.grounded) {
-        player.animTimer++;
-        if (player.animTimer > 8) {
-            player.animFrame = (player.animFrame + 1) % 4;
-            player.animTimer = 0;
-        }
-    } else if (player.grounded) {
-        player.animFrame = 0;
-        player.animTimer = 0;
     }
 }
 
 // ─── DRAW ──────────────────────────────────────────────────
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, 720, 400);
 
-    // Fundo com gradiente
-    const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    bgGrad.addColorStop(0, '#0f0c29');
-    bgGrad.addColorStop(0.5, '#302b63');
-    bgGrad.addColorStop(1, '#1a1a2e');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ─── Céu ───────────────────────────────────────────────
+    const grad = ctx.createLinearGradient(0, 0, 0, 400);
+    grad.addColorStop(0, '#5c94fc');
+    grad.addColorStop(0.55, '#87CEEB');
+    grad.addColorStop(0.56, '#90EE90');
+    grad.addColorStop(1, '#228B22');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 720, 400);
 
-    // Estrelas de fundo decorativas
-    for (let i = 0; i < 40; i++) {
-        const sx = (i * 137.5 + 50) % canvas.width;
-        const sy = (i * 89.3 + 20) % (canvas.height - 60);
-        const brightness = 0.3 + (i % 5) * 0.15;
-        ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+    // Nuvens
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    for (let i = 0; i < 5; i++) {
+        const cx = (i * 170 + 20) % 720;
+        const cy = 30 + (i % 3) * 25;
         ctx.beginPath();
-        ctx.arc(sx, sy, 1 + (i % 3), 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, 35, 15, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx+25, cy-5, 25, 12, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(cx-20, cy-3, 20, 10, 0, 0, Math.PI*2);
         ctx.fill();
     }
 
-    // Nível atual — nome
-    ctx.fillStyle = 'rgba(130, 87, 229, 0.5)';
-    ctx.font = 'bold 16px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`★ ${getLevel().name} ★`, canvas.width / 2, 28);
-
-    // Plataformas
-    for (const plat of platforms) {
-        const grad = ctx.createLinearGradient(plat.x, plat.y, plat.x, plat.y + plat.h);
-        grad.addColorStop(0, 'rgba(130, 87, 229, 0.6)');
-        grad.addColorStop(1, 'rgba(130, 87, 229, 0.3)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.roundRect(plat.x, plat.y, plat.w, plat.h, 4);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(130, 87, 229, 0.4)';
+    // ─── Plataformas (estilo Mario) ────────────────────────
+    for (const p of platforms) {
+        // Brick pattern
+        ctx.fillStyle = '#C4722C';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.strokeStyle = '#8B5E3C';
         ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+        // Linhas de tijolo
+        ctx.strokeStyle = '#8B5E3C';
+        ctx.lineWidth = 1;
+        for (let bx = p.x + 15; bx < p.x + p.w; bx += 30) {
+            ctx.beginPath();
+            ctx.moveTo(bx, p.y);
+            ctx.lineTo(bx, p.y + p.h);
+            ctx.stroke();
+        }
     }
 
-    // Estrelas (coletáveis)
-    const level = getLevel();
-    for (const star of level.stars) {
-        if (star.collected) continue;
-        const pulse = Math.sin(Date.now() / 300 + star.x) * 2;
+    // ─── Estrelas ──────────────────────────────────────────
+    for (let i = 0; i < STARS.length; i++) {
+        if (collected[i]) continue;
+        const s = STARS[i];
+        const pulse = Math.sin(Date.now() / 250 + i * 1.5) * 2;
 
         // Brilho
-        ctx.shadowColor = COLORS.starGlow;
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
         ctx.shadowBlur = 15;
 
-        ctx.fillStyle = COLORS.star;
-        const cx = star.x, cy = star.y + pulse;
-        const size = 10;
-        drawStar(ctx, cx, cy, 5, size, size * 0.4);
-
+        // Estrela
+        ctx.fillStyle = '#FFD700';
+        const cx = s.x, cy = s.y + pulse;
+        drawStar(ctx, cx, cy, 5, 10, 4);
         ctx.shadowBlur = 0;
 
-        // Rótulo
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-        ctx.font = '10px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('?', cx, cy + 4);
-    }
-
-    // Jogador (pixel art personagem)
-    const px = Math.round(player.x), py = Math.round(player.y);
-    const dir = player.facing;
-
-    // Brilho no chão
-    ctx.shadowColor = 'rgba(130, 87, 229, 0.3)';
-    ctx.shadowBlur = 20;
-
-    // Corpo (blusa)
-    ctx.fillStyle = COLORS.player;
-    ctx.beginPath();
-    ctx.roundRect(px + 2, py + 10, player.w - 4, 14, 4);
-    ctx.fill();
-
-    // Cabeça
-    ctx.fillStyle = '#e8c39e';
-    ctx.beginPath();
-    ctx.arc(px + player.w/2, py + 7, 9, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Cabelo
-    ctx.fillStyle = '#2d1b00';
-    ctx.beginPath();
-    ctx.arc(px + player.w/2, py + 5, 10, Math.PI, 2 * Math.PI);
-    ctx.fill();
-
-    // Olhos
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(px + 8, py + 5, 3, 3);
-    ctx.fillRect(px + 14, py + 5, 3, 3);
-
-    // Sorriso
-    ctx.strokeStyle = '#2d1b00';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(px + player.w/2, py + 8, 4, 0.1, Math.PI - 0.1);
-    ctx.stroke();
-
-    // Braços (animação)
-    ctx.fillStyle = '#e8c39e';
-    const armDir = player.grounded && Math.abs(player.vx) > 0 ? Math.sin(Date.now() / 150) * 3 : 0;
-    ctx.fillRect(px - 2, py + 12 + armDir, 5, 8);
-    ctx.fillRect(px + player.w - 3, py + 12 - armDir, 5, 8);
-
-    // Pernas
-    ctx.fillStyle = '#2d1b00';
-    const legAnim = player.grounded && Math.abs(player.vx) > 0 ? Math.sin(Date.now() / 100) * 3 : 0;
-    ctx.fillRect(px + 4, py + 24, 6, 8 + legAnim);
-    ctx.fillRect(px + 14, py + 24, 6, 8 - legAnim);
-
-    ctx.shadowBlur = 0;
-
-    // Mensagem na tela
-    if (gameState === 'message' && messageText) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.beginPath();
-        ctx.roundRect(canvas.width/2 - 250, 180, 500, 60, 12);
-        ctx.fill();
-
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 15px "Segoe UI", sans-serif';
+        // "?" dentro
+        ctx.fillStyle = '#8B6914';
+        ctx.font = 'bold 9px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(messageText, canvas.width/2, 210);
+        ctx.fillText('?', cx, cy + 1);
         ctx.textBaseline = 'alphabetic';
     }
 
-    // Dica de continuar (quando level completo)
-    if (levelComplete && gameState === 'playing') {
-        ctx.fillStyle = 'rgba(130, 87, 229, 0.8)';
-        ctx.font = 'bold 14px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Pressione ESPAÇO para continuar ➜', canvas.width/2, canvas.height - 20);
+    // ─── Jogador (Mario pixel style) ───────────────────────
+    const px = Math.round(player.x), py = Math.round(player.y);
+    const d = player.dir;
+
+    // Sombra
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 8;
+
+    // Boné (chapéu)
+    ctx.fillStyle = '#E03030';
+    ctx.fillRect(px + 3, py + 1, 14, 5);
+    ctx.fillRect(px + 1, py + 4, 18, 3);
+
+    // Rosto
+    ctx.fillStyle = '#F5D0A9';
+    ctx.fillRect(px + 2, py + 7, 16, 10);
+    ctx.fillRect(px + 4, py + 6, 12, 2);
+
+    // Olhos
+    ctx.fillStyle = '#000';
+    const eyeX = d > 0 ? px + 12 : px + 6;
+    ctx.fillRect(eyeX, py + 8, 2, 3);
+    ctx.fillRect(eyeX + 5, py + 8, 2, 3);
+
+    // Sorriso
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px + 8, py + 14, 6, 2);
+    ctx.fillRect(px + 9, py + 13, 4, 1);
+
+    // Bigode
+    ctx.fillStyle = '#4A2800';
+    ctx.fillRect(px + 6, py + 12, 10, 2);
+
+    // Camisa (vermelha)
+    ctx.fillStyle = '#E03030';
+    ctx.fillRect(px + 4, py + 17, 14, 10);
+
+    // Braços
+    ctx.fillStyle = '#F5D0A9';
+    if (Math.abs(player.vx) > 0 && player.grounded) {
+        const swing = Math.sin(Date.now() / 120) * 2;
+        ctx.fillRect(px + 1, py + 18 + swing, 4, 7);
+        ctx.fillRect(px + 17, py + 18 - swing, 4, 7);
+    } else {
+        ctx.fillRect(px + 1, py + 18, 4, 7);
+        ctx.fillRect(px + 17, py + 18, 4, 7);
     }
+
+    // Macacão (azul)
+    ctx.fillStyle = '#3060C0';
+    ctx.fillRect(px + 5, py + 22, 12, 8);
+
+    // Botões
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(px + 8, py + 20, 2, 2);
+    ctx.fillRect(px + 12, py + 20, 2, 2);
+
+    // Pernas
+    ctx.fillStyle = '#3060C0';
+    if (Math.abs(player.vx) > 0 && player.grounded) {
+        const leg = Math.sin(Date.now() / 100) * 3;
+        ctx.fillRect(px + 5, py + 28, 6, 7 + leg);
+        ctx.fillRect(px + 12, py + 28, 6, 7 - leg);
+    } else {
+        ctx.fillRect(px + 5, py + 28, 6, 7);
+        ctx.fillRect(px + 12, py + 28, 6, 7);
+    }
+
+    // Sapatos
+    ctx.fillStyle = '#5C3A1E';
+    ctx.fillRect(px + 4, py + 33, 8, 4);
+    ctx.fillRect(px + 12, py + 33, 8, 4);
+
+    ctx.shadowBlur = 0;
+
+    // ─── Dica no topo ──────────────────────────────────────
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '12px "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    if (starsCollected < STARS.length) {
+        ctx.fillText('Colete as ⭐ para conhecer a Ever!', 360, 16);
+    }
+    ctx.textAlign = 'start';
 }
 
-// ─── STAR DRAWING HELPER ──────────────────────────────────
 function drawStar(ctx, cx, cy, spikes, outerR, innerR) {
     let rot = Math.PI / 2 * 3;
-    let step = Math.PI / spikes;
+    const step = Math.PI / spikes;
     ctx.beginPath();
     ctx.moveTo(cx, cy - outerR);
     for (let i = 0; i < spikes; i++) {
@@ -488,25 +414,17 @@ function drawStar(ctx, cx, cy, spikes, outerR, innerR) {
         ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
         rot += step;
     }
-    ctx.lineTo(cx, cy - outerR);
     ctx.closePath();
     ctx.fill();
 }
 
-function updateHUD() {
-    scoreSpan.textContent = score;
-    levelSpan.textContent = `${currentLevel + 1}/${LEVEL_DATA.length}`;
-}
-
-// ─── GAME LOOP ─────────────────────────────────────────────
-function gameLoop() {
+// ─── LOOP ──────────────────────────────────────────────────
+function loop() {
     update();
     draw();
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
-
-gameLoop();
-updateHUD();
+loop();
 </script>
 </body>
 </html>
